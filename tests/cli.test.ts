@@ -16,15 +16,13 @@ describe('BackupTool CLI', () => {
     fs.writeFileSync(path.join(testDir, 'file2.bin'), Buffer.from([1,2,3,4,5]));
     // Setup test database connection
     client = new Client({
-      host: process.env.PGHOST || 'localhost',
-      port: parseInt(process.env.PGPORT || '5432'),
-      user: process.env.PGUSER || 'postgres',
-      password: process.env.PGPASSWORD || '',
-      database: process.env.PGDATABASE || 'backuptool_test',
+      host: 'localhost',
+      port: parseInt('5432'),
+      user: 'postgres',
+      password: 'password1',
+      database: 'backuptool_test',
     });
     await client.connect();
-    // Clean up tables if needed
-    await client.query('DROP TABLE IF EXISTS snapshots, files, snapshot_files CASCADE');
   });
 
   afterAll(async () => {
@@ -34,12 +32,12 @@ describe('BackupTool CLI', () => {
     await client.end();
   });
 
-  it('should take a snapshot and store file contents', () => {
+  it('should take a snapshot and store file contents', async () => {
     execSync(`npm run build`);
     execSync(`node dist/index.js snapshot --target-directory ${testDir}`);
     // Check that snapshot and file records exist in DB
-    const res = client.query('SELECT COUNT(*) FROM snapshots');
-    expect(res).resolves.toHaveProperty('rows');
+    const res = await client.query('SELECT COUNT(*) FROM snapshots');
+    expect(res).toHaveProperty('rows');
   });
 
   it('should list snapshots', () => {
@@ -47,18 +45,29 @@ describe('BackupTool CLI', () => {
     expect(output).toMatch(/SNAPSHOT/);
   });
 
-  it('should restore files bit-for-bit identical', () => {
-    execSync(`node dist/index.js restore --snapshot-number 1 --output-directory ${restoreDir}`);
-    const orig = fs.readFileSync(path.join(testDir, 'file1.txt'));
-    const restored = fs.readFileSync(path.join(restoreDir, 'file1.txt'));
+  it('should restore files bit-for-bit identical', async () => {
+    // Get latest snapshot id
+    const snapRes = await client.query('SELECT id FROM snapshots ORDER BY id DESC LIMIT 1');
+    const snapshotId = snapRes.rows[0]?.id;
+    expect(snapshotId).toBeDefined();
+    execSync(`node dist/index.js restore --snapshot-number ${snapshotId} --output-directory ${restoreDir}`);
+    const origPath = path.join(testDir, 'file1.txt');
+    const restoredPath = path.join(restoreDir, 'file1.txt');
+    expect(fs.existsSync(restoredPath)).toBe(true);
+    const orig = fs.readFileSync(origPath);
+    const restored = fs.readFileSync(restoredPath);
     expect(orig.equals(restored)).toBe(true);
   });
 
-  it('should prune snapshots and keep remaining restorable', () => {
-    execSync(`node dist/index.js prune --snapshot 1`);
+  it('should prune snapshots and keep remaining restorable', async () => {
+    // Get latest snapshot id
+    const snapRes = await client.query('SELECT id FROM snapshots ORDER BY id DESC LIMIT 1');
+    const snapshotId = snapRes.rows[0]?.id;
+    expect(snapshotId).toBeDefined();
+    execSync(`node dist/index.js prune --snapshot ${snapshotId}`);
     // Try restoring again, should not throw
     expect(() => {
-      execSync(`node dist/index.js restore --snapshot-number 1 --output-directory ${restoreDir}`);
+      execSync(`node dist/index.js restore --snapshot-number ${snapshotId} --output-directory ${restoreDir}`);
     }).not.toThrow();
   });
 });
