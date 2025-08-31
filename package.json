@@ -1,0 +1,25 @@
+{
+  "name": "backuptool",
+  "version": "1.0.0",
+  "description": "File backup CLI tool using PostgreSQL",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "jest"
+  },
+  "bin": {
+    "backuptool": "dist/index.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "pg": "^8.11.1",
+    "commander": "^11.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1"
+  }
+}
