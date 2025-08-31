@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "jest", 
+    "test": "jest",
     "migrate": "ts-node src/migrate.ts"
   },
   "bin": {
@@ -16,7 +16,9 @@
   "license": "MIT",
   "dependencies": {
     "commander": "^11.0.0",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.26"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
