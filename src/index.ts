@@ -9,11 +9,11 @@ const program = new Command();
 
 function getPgClient() {
   return new Client({
-    host: 'localhost',
-    port: parseInt('5432'),
-    user: 'postgres',
-    password: 'password1',
-    database: 'backuptool_test',
+    host: process.env.PGHOST || 'localhost',
+    port: parseInt(process.env.PGPORT || '5432'),
+    user: process.env.PGUSER || 'postgres',
+    password: process.env.PGPASSWORD || '',
+    database: process.env.PGDATABASE || '',
   });
 }
 

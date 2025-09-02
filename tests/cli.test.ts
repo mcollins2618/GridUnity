@@ -13,14 +13,14 @@ describe('BackupTool CLI', () => {
     if (!fs.existsSync(testDir)) fs.mkdirSync(testDir);
     if (!fs.existsSync(restoreDir)) fs.mkdirSync(restoreDir);
     fs.writeFileSync(path.join(testDir, 'file1.txt'), 'hello world');
-    fs.writeFileSync(path.join(testDir, 'file2.bin'), Buffer.from([1,2,3,4,5]));
+    fs.writeFileSync(path.join(testDir, 'file2.bin'), Buffer.from([1, 2, 3, 4, 5]));
     // Setup test database connection
     client = new Client({
-      host: 'localhost',
-      port: parseInt('5432'),
-      user: 'postgres',
-      password: 'password1',
-      database: 'backuptool_test',
+      host: process.env.PGHOST || 'localhost',
+      port: parseInt(process.env.PGPORT || '5432'),
+      user: process.env.PGUSER || 'postgres',
+      password: process.env.PGPASSWORD || '',
+      database: process.env.PGDATABASE || '',
     });
     await client.connect();
   });
