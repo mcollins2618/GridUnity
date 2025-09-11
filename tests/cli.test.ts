@@ -16,11 +16,11 @@ describe('BackupTool CLI', () => {
     fs.writeFileSync(path.join(testDir, 'file2.bin'), Buffer.from([1, 2, 3, 4, 5]));
     // Setup test database connection
     client = new Client({
-      host: process.env.PGHOST || 'localhost',
-      port: parseInt(process.env.PGPORT || '5432'),
-      user: process.env.PGUSER || 'postgres',
-      password: process.env.PGPASSWORD || '',
-      database: process.env.PGDATABASE || '',
+      host: 'localhost',
+      port: parseInt('5432'),
+      user: 'postgres',
+      password: 'password1',
+      database: 'backuptool_test',
     });
     await client.connect();
   });

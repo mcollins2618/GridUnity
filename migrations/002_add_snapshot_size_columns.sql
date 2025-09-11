@@ -1,0 +1,3 @@
+ALTER TABLE snapshots
+  ADD COLUMN size INTEGER DEFAULT 0,
+  ADD COLUMN distinct_size INTEGER DEFAULT 0;
