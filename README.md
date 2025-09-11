@@ -157,3 +157,22 @@ your submission.
 
 This copyright applies solely to this document and does not extend to any
 solutions, code, or responses provided by the candidate.
+
+
+## How to set up and run commands:
+
+npm run build
+
+npm run start
+
+SNAPSHOT: node dist/index.js snapshot --target-directory ./my_important_files
+
+LIST: node dist/index.js list
+
+PRUNE: node dist/index.js prune --snapshot <snapshot_number>
+
+RESTORE: node dist/index.js restore --snapshot-number <snapshot_number> --output-directory <output_directory>
+
+CHECK: node dist/index.js check
+
+CORRUPT: node dist/index.js corrupt
