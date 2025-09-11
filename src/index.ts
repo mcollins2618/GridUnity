@@ -35,19 +35,32 @@ async function snapshotDirectory(targetDir: string) {
   const client = getPgClient();
   await client.connect();
   const absTargetDir = path.resolve(targetDir);
-  const files: { relPath: string; hash: string; content: Buffer }[] = [];
+  const files: { relPath: string; hash: string; content: Buffer; size: number }[] = [];
+  let totalSize = 0;
+  let distinctSize = 0;
+  const seenHashes = new Set<string>();
+
   for (const filePath of getAllFiles(absTargetDir)) {
     const content = fs.readFileSync(filePath);
     const hash = crypto.createHash('sha256').update(content).digest('hex');
-    // Store relative path from targetDir
     const relPath = path.relative(absTargetDir, filePath);
-    files.push({ relPath, hash, content });
+    const size = content.length;
+    files.push({ relPath, hash, content, size });
+    totalSize += size;
+    if (!seenHashes.has(hash)) {
+      distinctSize += size;
+      seenHashes.add(hash);
+    }
   }
-  // Insert new snapshot
-  const snapRes = await client.query('INSERT INTO snapshots DEFAULT VALUES RETURNING id, timestamp');
+
+  // Insert new snapshot with size and distinct_size
+  const snapRes = await client.query(
+    'INSERT INTO snapshots (size, distinct_size) VALUES ($1, $2) RETURNING id, timestamp',
+    [totalSize, distinctSize]
+  );
   const snapshotId = snapRes.rows[0].id;
+
   for (const file of files) {
-    // Insert file if not exists
     let fileId: number;
     const fileRes = await client.query('SELECT id FROM files WHERE hash = $1', [file.hash]);
     if (fileRes.rows.length === 0) {
@@ -56,21 +69,25 @@ async function snapshotDirectory(targetDir: string) {
     } else {
       fileId = fileRes.rows[0].id;
     }
-    // Link file to snapshot
     await client.query('INSERT INTO snapshot_files (snapshot_id, file_id, filename) VALUES ($1, $2, $3)', [snapshotId, fileId, file.relPath]);
   }
   await client.end();
-  console.log(`Snapshot ${snapshotId} created.`);
+  console.log(`Snapshot ${snapshotId} created. Size: ${totalSize} bytes, Distinct size: ${distinctSize} bytes`);
 }
 
 async function listSnapshots() {
   const client = getPgClient();
   await client.connect();
-  const res = await client.query('SELECT id, timestamp FROM snapshots ORDER BY id');
-  console.log('SNAPSHOT  TIMESTAMP');
+  const res = await client.query('SELECT id, timestamp, size, distinct_size FROM snapshots ORDER BY id');
+  console.log('SNAPSHOT  TIMESTAMP           SIZE  DISTINCT_SIZE');
+  let totalSize = 0;
   for (const row of res.rows) {
     const ts = row.timestamp instanceof Date ? row.timestamp.toISOString().replace('T', ' ').substring(0, 19) : row.timestamp;
-    console.log(`${row.id}         ${ts}`);
+    console.log(`${row.id}         ${ts}  ${row.size ?? 0}   ${row.distinct_size ?? 0}`);
+    totalSize += row.distinct_size ?? 0;
+  }
+  if (res.rows.length > 0) {
+    console.log(`total                          ${totalSize}`);
   }
   await client.end();
 }
@@ -109,6 +126,67 @@ async function pruneSnapshot(snapshotNumber: number) {
   await client.end();
   console.log(`Snapshot ${snapshotNumber} pruned.`);
 }
+
+async function checkDatabaseIntegrity() {
+  const client = getPgClient();
+  await client.connect();
+  const res = await client.query('SELECT id, hash, content FROM files');
+  let corruptedCount = 0;
+  for (const row of res.rows) {
+    const actualHash = crypto.createHash('sha256').update(row.content).digest('hex');
+    if (actualHash !== row.hash) {
+      console.log(`Corrupted file detected: id=${row.id}, expected hash=${row.hash}, actual hash=${actualHash}`);
+      corruptedCount++;
+    }
+  }
+  if (corruptedCount === 0) {
+    console.log('No corrupted files detected.');
+  } else {
+    console.log(`Total corrupted files: ${corruptedCount}`);
+  }
+  await client.end();
+}
+
+async function corruptFirstFile() {
+  const client = getPgClient();
+  await client.connect();
+
+  // Get the first file
+  const res = await client.query('SELECT id FROM files LIMIT 1');
+  if (res.rows.length === 0) {
+    console.log('No files found to corrupt.');
+    await client.end();
+    return;
+  }
+  const fileId = res.rows[0].id;
+
+  // Overwrite the content with random bytes
+  const corruptedContent = Buffer.from('corrupted data');
+  await client.query('UPDATE files SET content = $1 WHERE id = $2', [corruptedContent, fileId]);
+  console.log(`File with id=${fileId} has been corrupted.`);
+
+  await client.end();
+}
+
+corruptFirstFile().catch(err => {
+  console.error('Failed to corrupt file:', err);
+  process.exit(1);
+});
+
+// Add the new command to the CLI
+program
+  .command('corrupt')
+  .description('Manually corrupt the content of the first file in the database for testing')
+  .action(async () => {
+    await corruptFirstFile();
+  });
+
+program
+  .command('check')
+  .description('Scan the database for any corrupted file content')
+  .action(async () => {
+    await checkDatabaseIntegrity();
+  });
 
 program
   .name('backuptool')
