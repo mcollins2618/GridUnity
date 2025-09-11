@@ -43,11 +43,13 @@ async function snapshotDirectory(targetDir: string) {
 
   for (const filePath of getAllFiles(absTargetDir)) {
     const content = fs.readFileSync(filePath);
+    // Compute file hash
     const hash = crypto.createHash('sha256').update(content).digest('hex');
     const relPath = path.relative(absTargetDir, filePath);
     const size = content.length;
     files.push({ relPath, hash, content, size });
     totalSize += size;
+    // Only count distinct size once per unique hash
     if (!seenHashes.has(hash)) {
       distinctSize += size;
       seenHashes.add(hash);
@@ -63,13 +65,16 @@ async function snapshotDirectory(targetDir: string) {
 
   for (const file of files) {
     let fileId: number;
+    // Check if file hash already exists
     const fileRes = await client.query('SELECT id FROM files WHERE hash = $1', [file.hash]);
     if (fileRes.rows.length === 0) {
+      // If not, insert it
       const insertRes = await client.query('INSERT INTO files (hash, content) VALUES ($1, $2) RETURNING id', [file.hash, file.content]);
       fileId = insertRes.rows[0].id;
     } else {
       fileId = fileRes.rows[0].id;
     }
+    // Link file to snapshot
     await client.query('INSERT INTO snapshot_files (snapshot_id, file_id, filename) VALUES ($1, $2, $3)', [snapshotId, fileId, file.relPath]);
   }
   await client.end();
@@ -79,9 +84,11 @@ async function snapshotDirectory(targetDir: string) {
 async function listSnapshots() {
   const client = getPgClient();
   await client.connect();
+  // List snapshots with size and distinct_size
   const res = await client.query('SELECT id, timestamp, size, distinct_size FROM snapshots ORDER BY id');
   console.log('SNAPSHOT  TIMESTAMP           SIZE  DISTINCT_SIZE');
   let totalSize = 0;
+  // Format timestamp to YYYY-MM-DD HH:MM:SS
   for (const row of res.rows) {
     const ts = row.timestamp instanceof Date ? row.timestamp.toISOString().replace('T', ' ').substring(0, 19) : row.timestamp;
     console.log(`${row.id}         ${ts}  ${row.size ?? 0}   ${row.distinct_size ?? 0}`);
@@ -96,14 +103,17 @@ async function listSnapshots() {
 async function restoreSnapshot(snapshotNumber: number, outputDir: string) {
   const client = getPgClient();
   await client.connect();
+  // Get files for snapshot
   const res = await client.query(
     'SELECT f.filename, fi.content FROM snapshot_files f JOIN files fi ON f.file_id = fi.id WHERE f.snapshot_id = $1',
     [snapshotNumber]
   );
+  // Write files to output directory
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
   if (res.rows.length === 0) {
     console.log(`No files found for snapshot ${snapshotNumber}`);
   }
+  // Write each file
   for (const row of res.rows) {
     const outPath = path.join(outputDir, row.filename);
     const outDir = path.dirname(outPath);
@@ -131,10 +141,13 @@ async function pruneSnapshot(snapshotNumber: number) {
 async function checkDatabaseIntegrity() {
   const client = getPgClient();
   await client.connect();
+  // Check all files for hash integrity
   const res = await client.query('SELECT id, hash, content FROM files');
   let corruptedCount = 0;
+  // Verify each file's content against its stored hash
   for (const row of res.rows) {
     const actualHash = crypto.createHash('sha256').update(row.content).digest('hex');
+    //  If hash doesn't match, report corruption
     if (actualHash !== row.hash) {
       console.log(`Corrupted file detected: id=${row.id}, expected hash=${row.hash}, actual hash=${actualHash}`);
       corruptedCount++;

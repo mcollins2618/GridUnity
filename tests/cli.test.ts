@@ -55,6 +55,7 @@ describe('BackupTool CLI', () => {
     execSync(`node dist/index.js restore --snapshot-number ${snapshotId} --output-directory ${restoreDir}`);
     const origPath = path.join(testDir, 'file1.txt');
     const restoredPath = path.join(restoreDir, 'file1.txt');
+    // Check file exists and contents match
     expect(fs.existsSync(restoredPath)).toBe(true);
     const orig = fs.readFileSync(origPath);
     const restored = fs.readFileSync(restoredPath);

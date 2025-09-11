@@ -7,6 +7,10 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "jest",
+    "list": "node dist/index.js list",
+    "snapshot": "node dist/index.js snapshot --target-directory ./my_important_files",
+    "check": "node dist/index.js check",
+    "corrupt": "node dist/index.js corrupt",
     "migrate": "ts-node src/migrate.ts"
   },
   "bin": {
