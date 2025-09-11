@@ -161,6 +161,8 @@ solutions, code, or responses provided by the candidate.
 
 ## How to set up and run commands:
 
+npm i
+
 npm run build
 
 npm run start
