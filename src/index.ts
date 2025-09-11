@@ -148,7 +148,13 @@ async function checkDatabaseIntegrity() {
 }
 
 async function corruptFirstFile() {
-  const client = getPgClient();
+  const client = new Client({
+    host: 'localhost',
+    port: 5432,
+    user: 'postgres',
+    password: 'password1',
+    database: 'backuptool_test',
+  });
   await client.connect();
 
   // Get the first file
@@ -167,11 +173,6 @@ async function corruptFirstFile() {
 
   await client.end();
 }
-
-corruptFirstFile().catch(err => {
-  console.error('Failed to corrupt file:', err);
-  process.exit(1);
-});
 
 // Add the new command to the CLI
 program
