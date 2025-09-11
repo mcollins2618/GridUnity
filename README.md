@@ -167,14 +167,14 @@ npm run build
 
 npm run start
 
-SNAPSHOT: node dist/index.js snapshot --target-directory ./my_important_files
+SNAPSHOT: npm run snapshot
 
-LIST: node dist/index.js list
+LIST: npm run list
 
 PRUNE: node dist/index.js prune --snapshot <snapshot_number>
 
 RESTORE: node dist/index.js restore --snapshot-number <snapshot_number> --output-directory <output_directory>
 
-CHECK: node dist/index.js check
+CHECK: npm run check
 
-CORRUPT: node dist/index.js corrupt
+CORRUPT: npm run corrupt
