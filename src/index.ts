@@ -1,19 +1,20 @@
-
 import { Command } from 'commander';
 import { Client } from 'pg';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const program = new Command();
 
 function getPgClient() {
   return new Client({
-    host: 'localhost',
-    port: parseInt('5432'),
-    user: 'postgres',
-    password: 'password1',
-    database: 'backuptool_test',
+    host: process.env.PGHOST,
+    port: parseInt(process.env.PGPORT || '5432'),
+    user: process.env.PGUSER,
+    password: process.env.PGPASSWORD,
+    database: process.env.PGDATABASE,
   });
 }
 
